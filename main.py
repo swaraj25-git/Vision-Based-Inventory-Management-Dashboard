@@ -115,7 +115,65 @@ def draw_incoming_feed(frame, webcam_frame):
 
     draw_rounded_rect(frame, (cam_x1,cam_y1),(cam_x1+cam_width,cam_y1+cam_height),BORDER_GRAY,1,10)
 
+def draw_shelf_layout(frame):
+    "draw the shelf and fill accordingly"
+    section_x = SHELF_LAYOUT_START_X
+    section_y = TOP_BAR_HEIGHT
 
+    cv2.putText(frame, "Virtual Shelf Layout", (section_x+20, section_y+20),cv2.FONT_HERSHEY_SIMPLEX,0.7,TEXT_WHITE,2)
+
+    row_headers = {}
+    for cat, shelves in CATEGORY_MAPPINGS.items():
+        row = shelves[0] // SHELF_COLS
+        row_headers[row] = cat
+
+
+    SHELF_OFFSET_Y = 30
+
+    for r in range(SHELF_ROWS):
+        if r in row_headers:
+            header_y = SHELF_GRID_OFFSET_Y + r * SHELF_CELL_HEIGHT + 20
+            cv2.putText(frame, row_headers[r], (SHELF_GRID_OFFSET_X + SHELF_PADDING_CELL, header_y),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, TEXT_WHITE,1)
+
+#         drawing the shelves
+        for c in range(SHELF_COLS):
+            index = r*SHELF_COLS + c
+            shelf = INVENTORY[index]
+            fill_pct = get_shelf_percentage(index)
+
+            x1 = SHELF_GRID_OFFSET_X + c * SHELF_CELL_WIDTH
+            y1 = SHELF_GRID_OFFSET_Y + r * SHELF_CELL_HEIGHT + SHELF_OFFSET_Y
+            x2 = x1 + SHELF_CELL_HEIGHT
+            y2= y1 + SHELF_CELL_HEIGHT - SHELF_OFFSET_Y
+
+            draw_rounded_rect(frame, (x1 + SHELF_PADDING_CELL, y1 + SHELF_PADDING_CELL),
+                              (x2 -  SHELF_PADDING_CELL, y2 - SHELF_PADDING_CELL),SHELF_BORDER_COLOR,1,8)
+
+            inner_x1 = x1 + SHELF_PADDING_CELL + 1
+            inner_y1 = y1 + SHELF_PADDING_CELL + 1
+            inner_x2 = x2 - SHELF_PADDING_CELL - 1
+            inner_y2 = y2 - SHELF_PADDING_CELL - 1
+
+            cv2.rectangle(frame, (inner_x1,inner_y1),(inner_x2,inner_y2),FILL_EMPTY_COLOR,-1)
+#             if items presemt draw the empty bar
+            if fill_pct>0:
+                fill_width = int((inner_x2-inner_x1)* (fill_pct/100.0))
+                cv2.rectangle(frame,(inner_x1,inner_y1),(inner_x1+fill_width,inner_y2),(0,0,200),-1)
+
+            cv2.putText(frame, f"S{index +1}",(inner_x1 + 5, inner_y1 + 15),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.45,SHELF_TEXT_COLOR,1)
+
+            if shelf['type']:
+                cv2.putText(frame, f"{int(fill_pct)}%",(inner_x1 + 5, inner_y1 + 35),
+                            cv2.FONT_HERSHEY_SIMPLEX,0.4,ACCENT_BLUE,1)
+            else:
+                cv2.putText(frame, "EMPTY",(inner_x1 + 5, inner_y1 + 45),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.4, SHELF_TEXT_COLOR,1)
+
+            if fill_pct== 100:
+                cv2.putText(frame, "Full", (inner_x2 - 30, inner_y1 + 15),
+                            cv2.FONT_HERSHEY_SIMPLEX,0.4,WARNING_RED,1)
 
 def main():
     cap = cv2.VideoCapture(0)
@@ -140,18 +198,12 @@ def main():
         # draw the ui blueprint
         draw_top_bar(main_canvas)
         draw_main_sections_background(main_canvas)
+        draw_incoming_feed(main_canvas, webcam_frame)
 
-        # add title and paste the webcam
-        cv2.putText(main_canvas, "Incoming Feed",(INCOMING_FEED_START_X+20,TOP_BAR_HEIGHT + 30),cv2.FONT_HERSHEY_SIMPLEX,0.7,TEXT_WHITE,2)
+        draw_shelf_layout(main_canvas)
+        cv2.imshow("Vision - Based Inventory Management System",main_canvas)
 
-        # calculate the exact camera dimensions to fit perfectly inside the colum with padding
-        cam_x1 = INCOMING_FEED_START_X + 20
-        cam_y1 = TOP_BAR_HEIGHT + 60
-        cam_width = INCOMING_FEED_WIDTH - 40
-        cam_height = 150
 
-        resized_cam = cv2.resize(webcam_frame,(cam_width,cam_height))
-        main_canvas[cam_y1:cam_y1+cam_height,cam_x1:cam_x1+cam_width] = resized_cam
 
         # show the canvas
         #
@@ -160,7 +212,6 @@ def main():
         #
         # main_canvas[CAM_Y:cam_y_end,CAM_X:cam_x_end] = resized_cam
 
-        cv2.imshow("Vision Based inventory management System",main_canvas)
 
         key = cv2.waitKey(1) & 0xFF
 
