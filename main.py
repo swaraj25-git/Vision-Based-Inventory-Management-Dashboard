@@ -3,6 +3,15 @@
 import cv2
 import numpy as np
 
+MODEL_FILE = "best.onnx"
+INPUT_WIDTH = 650
+INPUT_HEIGHT = 640
+CONFIDENCE_THRESHOLD = 0.5
+NMS_THRESHOLD = 0.45
+
+CLASS_NAMES = ['Keys', 'Phone','Toothpaste','Watch']
+
+
 # overall app window
 FRAME_WIDTH = 1280
 FRAME_HEIGHT = 720
@@ -67,6 +76,23 @@ CATEGORY_MAPPINGS = {
 # fake opjects for testing
 INVENTORY[0] = {'type': 'Phone', 'count': 4, 'max_capacity': 10}       # 40% full
 INVENTORY[5] = {'type': 'Wrist watch', 'count': 10, 'max_capacity': 10} # 100% full (FULL)
+
+
+def pre_process(incoming_image,net):
+    "w.r.t YOLOv8 Model"
+    (frame_h,frame_w) = incoming_image.shape[:2]
+    r = min(INPUT_WIDTH/frame_w, INPUT_HEIGHT/frame_h)
+    new_unpad_w, new_unpad_h = int(round(frame_w*r)),int(round(frame_h*r))
+    dw, dh = (INPUT_WIDTH - new_unpad_w) // 2, (INPUT_HEIGHT - new_unpad_h)//2
+
+    resized_image = cv2.resize(incoming_image,(new_unpad_w,new_unpad_h),interpolation=cv2.INTER_LINEAR)
+    padded_image = cv2.copyMakeBorder(resized_image, dh,dh,dw,dw,cv2.BORDER_CONSTANT,value=(114,114,114))
+    blob = cv2.dnn.blobFromImage(padded_image,1/255.0,(INPUT_WIDTH,INPUT_HEIGHT),swapRB=True,crop=False)
+    net.setInput(blob)
+    outputs = net.forward(net.getUncinnectedOutLayerNames())
+    return outputs[0],r,dw,dh
+
+
 
 
 def get_shelf_percentage(shelf_index):
