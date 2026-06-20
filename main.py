@@ -1,15 +1,15 @@
-
+import os.path
 
 import cv2
 import numpy as np
 
 MODEL_FILE = "best.onnx"
-INPUT_WIDTH = 650
+INPUT_WIDTH = 640
 INPUT_HEIGHT = 640
-CONFIDENCE_THRESHOLD = 0.5
+CONFIDENCE_THRESHOLD = 0.90
 NMS_THRESHOLD = 0.45
 
-CLASS_NAMES = ['Keys', 'Phone','Toothpaste','Watch']
+CLASS_NAMES = ['Keys', 'Phone','Toothpaste','Wrist Watch']
 
 
 # overall app window
@@ -75,7 +75,7 @@ CATEGORY_MAPPINGS = {
 
 # fake opjects for testing
 INVENTORY[0] = {'type': 'Phone', 'count': 4, 'max_capacity': 10}       # 40% full
-INVENTORY[5] = {'type': 'Wrist watch', 'count': 10, 'max_capacity': 10} # 100% full (FULL)
+INVENTORY[5] = {'type': 'Wrist Watch', 'count': 10, 'max_capacity': 10} # 100% full (FULL)
 
 
 def pre_process(incoming_image,net):
@@ -89,8 +89,53 @@ def pre_process(incoming_image,net):
     padded_image = cv2.copyMakeBorder(resized_image, dh,dh,dw,dw,cv2.BORDER_CONSTANT,value=(114,114,114))
     blob = cv2.dnn.blobFromImage(padded_image,1/255.0,(INPUT_WIDTH,INPUT_HEIGHT),swapRB=True,crop=False)
     net.setInput(blob)
-    outputs = net.forward(net.getUncinnectedOutLayerNames())
+    outputs = net.forward(net.getUnconnectedOutLayersNames())
     return outputs[0],r,dw,dh
+
+def find_object(detection_zoneframe,net):
+    (frame_h, frame_w) = detection_zoneframe.shape[:2]
+    output_data,scale_ratio, pad_dw, pad_dh = pre_process(detection_zoneframe,net)
+    output_data = output_data[0].T
+
+    class_ids, confidences, boxes = [], [], []
+
+    for row in output_data:
+        scores = row[4:]
+        class_id = np.argmax(scores)
+        confidence  =scores[class_id]
+
+        if confidence>=CONFIDENCE_THRESHOLD:
+            cx,cy,w,h = row[0], row[1], row[2],row[3]
+            left = int((cx - w /2))
+            top = int((cy-h/2))
+            boxes.append([left,top,int(w),int(h)])
+            confidences.append(float(confidence))
+            class_ids.append(class_id)
+
+    indices = cv2.dnn.NMSBoxes(boxes,confidences,CONFIDENCE_THRESHOLD,NMS_THRESHOLD)
+    if len(indices) == 0: return None, None
+
+    largest_area, best_detection =0, None
+    for i in indices.flatten():
+        class_id = class_ids[i]
+        if class_id<len(CLASS_NAMES):
+            our_item_type = CLASS_NAMES[class_id]
+            box= boxes[i]
+            x,y,w,h = box[0], box[1], box[2], box[3]
+
+            x1_orig = max(0, int(round((x - pad_dw) / scale_ratio)))
+            y1_orig = max(0, int(round((y - pad_dh) / scale_ratio)))
+            x2_orig = min(frame_w,x1_orig + int(round(w/scale_ratio)))
+            # y2_orig = max(0, int(round((x - pad_dw) / scale_ratio)))
+            y2_orig = min(frame_h, y1_orig + int(round(h / scale_ratio)))
+
+            area = (x2_orig - x1_orig)* (y2_orig - y1_orig)
+            if area> largest_area:
+                largest_area = area
+                best_detection = (our_item_type,(x1_orig,y1_orig,x2_orig,y2_orig))
+
+    if best_detection:return best_detection[0], best_detection[1]
+    return None, None
 
 
 
@@ -171,7 +216,7 @@ def draw_shelf_layout(frame):
 
             x1 = SHELF_GRID_OFFSET_X + c * SHELF_CELL_WIDTH
             y1 = SHELF_GRID_OFFSET_Y + r * SHELF_CELL_HEIGHT + SHELF_OFFSET_Y
-            x2 = x1 + SHELF_CELL_HEIGHT
+            x2 = x1 + SHELF_CELL_WIDTH
             y2= y1 + SHELF_CELL_HEIGHT - SHELF_OFFSET_Y
 
             draw_rounded_rect(frame, (x1 + SHELF_PADDING_CELL, y1 + SHELF_PADDING_CELL),
@@ -203,11 +248,23 @@ def draw_shelf_layout(frame):
                             cv2.FONT_HERSHEY_SIMPLEX,0.4,WARNING_RED,1)
 
 def main():
+
+    if not os.path.exists(MODEL_FILE):
+        print(f"Error: Put {MODEL_FILE} in project folder")
+        return
+    print('Loading my yolo model')
+    net = cv2.dnn.readNet(MODEL_FILE)
+    print('Model Ready')
+
+
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         print("Error: Could not open webcam")
         return
     print("System started! Press q to Quit")
+
+    webcam_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    webcam_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     while True:
         ret, webcam_frame = cap.read()
@@ -228,6 +285,28 @@ def main():
         draw_incoming_feed(main_canvas, webcam_frame)
 
         draw_shelf_layout(main_canvas)
+
+        detected_type, box = find_object(webcam_frame,net)
+
+        if detected_type and box:
+            cam_x1 = INCOMING_FEED_START_X + 20
+            cam_y1 = TOP_BAR_HEIGHT+60
+            cam_width = INCOMING_FEED_WIDTH - 40
+            cam_height = 150
+
+            scale_x = cam_width / webcam_w
+            scale_y = cam_height / webcam_h
+
+            (x1,y1,x2,y2) = box
+            ui_box_x1 = int(x1 * scale_x) + cam_x1
+            ui_box_y1 = int(y1 * scale_y) + cam_y1
+            ui_box_x2 = int(x2 * scale_x) + cam_x1
+            ui_box_y2 = int(y2 * scale_y) + cam_y1
+
+            cv2.rectangle(main_canvas,(ui_box_x1,ui_box_y1),(ui_box_x2,ui_box_y2),ACCENT_BLUE,2)
+            cv2.putText(main_canvas,detected_type,(ui_box_x1,ui_box_y1-10),cv2.FONT_HERSHEY_SIMPLEX,0.5,ACCENT_BLUE,2)
+
+
         cv2.imshow("Vision - Based Inventory Management System",main_canvas)
 
 
@@ -249,6 +328,8 @@ def main():
     cv2.destroyAllWindows()
 if __name__ == "__main__":
     main()
+
+
 
 
 
