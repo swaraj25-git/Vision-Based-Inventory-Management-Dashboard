@@ -356,7 +356,7 @@ def draw_dashboard(frame):
 
         cv2.putText(frame,f"S{i+1}",(col1_x,y_current),cv2.FONT_HERSHEY_SIMPLEX,0.4,TEXT_WHITE,1)
         cv2.putText(frame, item_next, (col2_x, y_current), cv2.FONT_HERSHEY_SIMPLEX, 0.4, TEXT_WHITE, 1)
-        cv2.putText(frame, f"int({fill_pct}) %", (col3_x, y_current), cv2.FONT_HERSHEY_SIMPLEX, 0.4, ACCENT_GREEN if fill_pct>0 else TEXT_WHITE,1, 1)
+        cv2.putText(frame, fill_display, (col3_x, y_current), cv2.FONT_HERSHEY_SIMPLEX, 0.4, ACCENT_GREEN if fill_pct>0 else TEXT_WHITE,1, 1)
         y_current +=20
 
 
@@ -408,7 +408,7 @@ def main():
         # if cooldown_counter== 0:
         detected_type, box = find_object(webcam_frame,net)
 
-        if detected_type:
+        if detected_type and cooldown_counter == 0:
             print(f"Model Detected: {detected_type}")
             sucess = place_object(detected_type)
             cooldown_counter = COOLDOWN_FRAMES
