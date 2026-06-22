@@ -28,3 +28,5 @@ A real-time, AI-powered inventory tracking application built entirely with Pytho
    ```bash
    git clone [https://github.com/YOUR_USERNAME/vision_inventory.git](https://github.com/YOUR_USERNAME/vision_inventory.git)
    cd vision_inventory
+
+   pip install opencv-python numpy
