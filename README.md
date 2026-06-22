@@ -22,8 +22,10 @@ A real-time, AI-powered inventory tracking application built entirely with Pytho
 * **Matrix Math:** NumPy (`numpy`)
 * **AI Model:** YOLOv8 (Running via OpenCV's `dnn` module)
 
-## Results;
-<img width="1812" height="906" alt="image" src="https://github.com/user-attachments/assets/f2c724ac-4150-4357-8227-2293cf22481e" />
+## Results
+<!-- <img width="1812" height="906" alt="image" src="https://github.com/user-attachments/assets/f2c724ac-4150-4357-8227-2293cf22481e" /> -->
+<img width="1837" height="967" alt="image" src="https://github.com/user-attachments/assets/fbcbaa36-ee64-4f92-b0de-0ec769810c25" />
+
 <img width="1832" height="978" alt="Screenshot 2026-06-22 154516" src="https://github.com/user-attachments/assets/d3185ea4-8df8-4226-b15c-26e2bd436cb9" />
 
 
