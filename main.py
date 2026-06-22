@@ -6,7 +6,12 @@ import numpy as np
 MODEL_FILE = "best.onnx"
 INPUT_WIDTH = 640
 INPUT_HEIGHT = 640
-CONFIDENCE_THRESHOLD = 0.90
+CONFIDENCE_THRESHOLD = {
+    'Phone':0.90,
+    'Wrist Watch': 0.65,
+    'Keys': 0.35,
+    'Toothpaste': 0.50
+}
 NMS_THRESHOLD = 0.45
 
 CLASS_NAMES = ['Keys', 'Phone','Toothpaste','Wrist Watch']
@@ -102,17 +107,21 @@ def find_object(detection_zoneframe,net):
     for row in output_data:
         scores = row[4:]
         class_id = np.argmax(scores)
-        confidence  =scores[class_id]
+        confidence  = float(scores[class_id])
 
-        if confidence>=CONFIDENCE_THRESHOLD:
-            cx,cy,w,h = row[0], row[1], row[2],row[3]
-            left = int((cx - w /2))
-            top = int((cy-h/2))
-            boxes.append([left,top,int(w),int(h)])
-            confidences.append(float(confidence))
-            class_ids.append(class_id)
+        if class_id<len(CLASS_NAMES):
+            item_name = CLASS_NAMES[class_id]
+            req_confidence = CONFIDENCE_THRESHOLD.get(item_name,0.5)
 
-    indices = cv2.dnn.NMSBoxes(boxes,confidences,CONFIDENCE_THRESHOLD,NMS_THRESHOLD)
+            if confidence>=req_confidence:
+                cx,cy,w,h = row[0], row[1], row[2],row[3]
+                left = int((cx - w /2))
+                top = int((cy-h/2))
+                boxes.append([left,top,int(w),int(h)])
+                confidences.append(confidence)
+                class_ids.append(class_id)
+
+    indices = cv2.dnn.NMSBoxes(boxes,confidences,0.1,NMS_THRESHOLD)
     if len(indices) == 0: return None, None
 
     largest_area, best_detection =0, None
