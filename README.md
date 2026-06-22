@@ -30,3 +30,10 @@ A real-time, AI-powered inventory tracking application built entirely with Pytho
    cd vision_inventory
 
    pip install opencv-python numpy
+2. **Add your AI Model:
+   Ensure you have your custom-trained YOLOv8 ONNX model.Rename it to best.onnx.Place it directly into the root vision_inventory directory. (Note: This file should be ignored by .gitignore due to size constraints on GitHub).
+
+3. ##💻 **Usage
+   Run the main application script:
+   ```bash
+   python main.py
